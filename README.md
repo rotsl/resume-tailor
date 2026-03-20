@@ -19,6 +19,7 @@ It can run three ways:
 If you enable Notion, each run can also be logged there through MCP.
 
 **Live demo:** [rotsl.github.io/resume-tailor](https://rotsl.github.io/resume-tailor)
+**Privacy policy:** [rotsl.github.io/resume-tailor/privacy.html](https://rotsl.github.io/resume-tailor/privacy.html)
 
 ## What it actually does
 
