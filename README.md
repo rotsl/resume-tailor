@@ -1,6 +1,6 @@
 # Resume Tailor
 
-[![Version](https://img.shields.io/badge/version-v0.0.1-8b5cf6.svg)](https://github.com/rotsl/resume-tailor/releases/tag/v0.0.1)
+[![Version](https://img.shields.io/badge/version-0.0.1-8b5cf6.svg)](https://github.com/rotsl/resume-tailor/releases/tag/0.0.1)
 [![Try it out](https://img.shields.io/badge/Try_it_out-Live_Demo-0f172a?logo=githubpages&logoColor=white)](https://rotsl.github.io/resume-tailor)
 [![Visitors](https://visitor-badge.laobi.icu/badge?page_id=rotsl.resume-tailor&title=visitors&left_text=visitors)](https://rotsl.github.io/resume-tailor)
 
