@@ -1,6 +1,6 @@
 """
 scripts/setup_notion_databases.py
-One-time setup script to create the required Notion databases.
+One-time setup script to create the required Notion databases via Notion MCP.
 Run this once after setting your NOTION_API_KEY in .env
 
 Usage:
@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import typer
-from notion_client import Client
+from src.mcp_notion_client import call_notion_mcp
 from rich.console import Console
 from rich import print as rprint
 
@@ -24,41 +24,47 @@ console = Console()
 app = typer.Typer()
 
 
-def create_jobs_database(client: Client, parent_page_id: str) -> str:
+def create_jobs_database(parent_page_id: str) -> str:
     """Create the Jobs tracking database."""
-    response = client.databases.create(
-        parent={"type": "page_id", "page_id": parent_page_id},
-        title=[{"type": "text", "text": {"content": "🎯 Job Applications"}}],
-        properties={
-            "Name": {"title": {}},
-            "Status": {
-                "select": {
-                    "options": [
-                        {"name": "Tailored", "color": "blue"},
-                        {"name": "Applied", "color": "green"},
-                        {"name": "Interview", "color": "yellow"},
-                        {"name": "Offer", "color": "purple"},
-                        {"name": "Rejected", "color": "red"},
-                        {"name": "Withdrawn", "color": "gray"},
-                    ]
-                }
+    response = call_notion_mcp(
+        "API-create-a-database",
+        {
+            "parent": {"type": "page_id", "page_id": parent_page_id},
+            "title": [{"type": "text", "text": {"content": "🎯 Job Applications"}}],
+            "properties": {
+                "Name": {"title": {}},
+                "Status": {
+                    "select": {
+                        "options": [
+                            {"name": "Tailored", "color": "blue"},
+                            {"name": "Applied", "color": "green"},
+                            {"name": "Interview", "color": "yellow"},
+                            {"name": "Offer", "color": "purple"},
+                            {"name": "Rejected", "color": "red"},
+                            {"name": "Withdrawn", "color": "gray"},
+                        ]
+                    }
+                },
+                "Company": {"rich_text": {}},
+                "Date": {"date": {}},
             },
-            "Company": {"rich_text": {}},
-            "Date": {"date": {}},
         },
     )
     return response["id"]
 
 
-def create_outputs_database(client: Client, parent_page_id: str) -> str:
+def create_outputs_database(parent_page_id: str) -> str:
     """Create the Outputs database."""
-    response = client.databases.create(
-        parent={"type": "page_id", "page_id": parent_page_id},
-        title=[{"type": "text", "text": {"content": "📄 Resume & Cover Letter Outputs"}}],
-        properties={
-            "Name": {"title": {}},
-            "Company": {"rich_text": {}},
-            "Date": {"date": {}},
+    response = call_notion_mcp(
+        "API-create-a-database",
+        {
+            "parent": {"type": "page_id", "page_id": parent_page_id},
+            "title": [{"type": "text", "text": {"content": "📄 Resume & Cover Letter Outputs"}}],
+            "properties": {
+                "Name": {"title": {}},
+                "Company": {"rich_text": {}},
+                "Date": {"date": {}},
+            },
         },
     )
     return response["id"]
@@ -76,14 +82,12 @@ def setup(
         console.print("[red]❌ NOTION_API_KEY not set in .env[/]")
         raise typer.Exit(1)
 
-    client = Client(auth=api_key)
-
     console.print("Creating Notion databases...")
 
-    jobs_id = create_jobs_database(client, parent_page_id)
+    jobs_id = create_jobs_database(parent_page_id)
     console.print(f"✅ Jobs database created: [cyan]{jobs_id}[/]")
 
-    outputs_id = create_outputs_database(client, parent_page_id)
+    outputs_id = create_outputs_database(parent_page_id)
     console.print(f"✅ Outputs database created: [cyan]{outputs_id}[/]")
 
     console.print("\n[bold green]Add these to your .env file:[/]")

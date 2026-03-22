@@ -15,27 +15,17 @@ else is written as structured page content (blocks), which is always safe.
 import os
 from datetime import datetime
 from typing import Optional
-from notion_client import Client
+from .mcp_notion_client import call_notion_mcp
 
 
-def get_notion_client() -> Client:
-    api_key = os.environ.get("NOTION_API_KEY")
-    if not api_key:
-        raise ValueError(
-            "NOTION_API_KEY not set. Add it to your .env file.\n"
-            "Get your key at: https://www.notion.so/my-integrations"
-        )
-    return Client(auth=api_key)
-
-
-def _get_title_property_name(client: Client, db_id: str) -> str:
+def _get_title_property_name(db_id: str) -> str:
     """
     Introspect the database and return the name of the title property.
     Every Notion database has exactly one title property — but it may be
     named anything ('Name', 'Title', 'Job', etc.).
     """
     try:
-        db = client.databases.retrieve(database_id=db_id)
+        db = call_notion_mcp("API-retrieve-a-database", {"database_id": db_id})
         for prop_name, prop_data in db.get("properties", {}).items():
             if prop_data.get("type") == "title":
                 return prop_name
@@ -87,8 +77,7 @@ def _text_to_blocks(text: str, heading: str) -> list:
 
 def read_job_from_notion_page(page_id: str) -> str:
     """Read the content of a Notion page as plain text."""
-    client = get_notion_client()
-    blocks = client.blocks.children.list(block_id=page_id)
+    blocks = call_notion_mcp("API-retrieve-block-children", {"block_id": page_id})
 
     text_parts = []
     for block in blocks.get("results", []):
@@ -120,41 +109,43 @@ def log_job_to_notion(
         print("⚠️  NOTION_JOBS_DB_ID not set — skipping Notion job log.")
         return None
 
-    client = get_notion_client()
-    title_prop = _get_title_property_name(client, db_id)
+    title_prop = _get_title_property_name(db_id)
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     try:
-        response = client.pages.create(
-            parent={"database_id": db_id},
-            properties={
-                title_prop: {
-                    "title": [{"text": {"content": f"{job_title} @ {company}"}}]
+        response = call_notion_mcp(
+            "API-create-a-page",
+            {
+                "parent": {"database_id": db_id},
+                "properties": {
+                    title_prop: {
+                        "title": [{"text": {"content": f"{job_title} @ {company}"}}]
+                    },
                 },
+                "children": [
+                    _make_info_block("Status", status),
+                    _make_info_block("Company", company),
+                    _make_info_block("Date", date_str),
+                    _make_info_block("Role", job_title),
+                    {"object": "block", "type": "divider", "divider": {}},
+                    {
+                        "object": "block",
+                        "type": "heading_3",
+                        "heading_3": {
+                            "rich_text": [{"type": "text",
+                                           "text": {"content": "Job Description Snippet"}}]
+                        },
+                    },
+                    {
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [{"type": "text",
+                                           "text": {"content": job_description_snippet[:2000]}}]
+                        },
+                    },
+                ],
             },
-            children=[
-                _make_info_block("Status", status),
-                _make_info_block("Company", company),
-                _make_info_block("Date", date_str),
-                _make_info_block("Role", job_title),
-                {"object": "block", "type": "divider", "divider": {}},
-                {
-                    "object": "block",
-                    "type": "heading_3",
-                    "heading_3": {
-                        "rich_text": [{"type": "text",
-                                       "text": {"content": "Job Description Snippet"}}]
-                    },
-                },
-                {
-                    "object": "block",
-                    "type": "paragraph",
-                    "paragraph": {
-                        "rich_text": [{"type": "text",
-                                       "text": {"content": job_description_snippet[:2000]}}]
-                    },
-                },
-            ],
         )
         return response["id"]
     except Exception as e:
@@ -181,8 +172,7 @@ def save_outputs_to_notion(
         print("⚠️  NOTION_OUTPUTS_DB_ID not set — skipping Notion output save.")
         return None
 
-    client = get_notion_client()
-    title_prop = _get_title_property_name(client, db_id)
+    title_prop = _get_title_property_name(db_id)
     date_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     page_title = f"{job_title} @ {company} — {datetime.utcnow().strftime('%Y-%m-%d')}"
 
@@ -199,14 +189,17 @@ def save_outputs_to_notion(
             + _text_to_blocks(cover_letter, "✉️ Cover Letter")
         )
 
-        response = client.pages.create(
-            parent={"database_id": db_id},
-            properties={
-                title_prop: {
-                    "title": [{"text": {"content": page_title}}]
+        response = call_notion_mcp(
+            "API-create-a-page",
+            {
+                "parent": {"database_id": db_id},
+                "properties": {
+                    title_prop: {
+                        "title": [{"text": {"content": page_title}}]
+                    },
                 },
+                "children": children,
             },
-            children=children,
         )
         return response["id"]
     except Exception as e:
@@ -222,12 +215,14 @@ def list_past_applications(limit: int = 10) -> list:
     if not db_id:
         return []
 
-    client = get_notion_client()
     try:
-        response = client.databases.query(
-            database_id=db_id,
-            sorts=[{"timestamp": "created_time", "direction": "descending"}],
-            page_size=limit,
+        response = call_notion_mcp(
+            "API-query-a-database",
+            {
+                "database_id": db_id,
+                "sorts": [{"timestamp": "created_time", "direction": "descending"}],
+                "page_size": limit,
+            },
         )
         results = []
         for page in response.get("results", []):
